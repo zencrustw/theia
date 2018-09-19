@@ -533,6 +533,17 @@ export class ThemeColor {
     }
 }
 
+export class ThemeIcon {
+
+    static readonly File: ThemeIcon;
+
+    static readonly Folder: ThemeIcon;
+
+    private constructor(public id: string) {
+    }
+
+}
+
 export enum TextEditorRevealType {
     Default = 0,
     InCenter = 1,
@@ -858,4 +869,40 @@ export class Hover {
         }
         this.range = range;
     }
+}
+
+export class TreeItem {
+
+    label?: string;
+
+    id?: string;
+
+    iconPath?: string | URI | { light: string | URI; dark: string | URI } | ThemeIcon;
+
+    resourceUri?: URI;
+
+    tooltip?: string | undefined;
+
+    command?: theia.Command;
+
+    // collapsibleState?: TreeItemCollapsibleState;
+
+    contextValue?: string;
+
+    // constructor(public label: string, public collapsibleState?: TreeItemCollapsibleState) {
+    // }
+
+    // constructor(public resourceUri: URI, public collapsibleState?: TreeItemCollapsibleState) {
+    // }
+
+    constructor(public labelOrURI: string | URI, public collapsibleState?: TreeItemCollapsibleState) {
+        console.log('> creating tree item!!!!');
+    }
+
+}
+
+export enum TreeItemCollapsibleState {
+    None = 0,
+    Collapsed = 1,
+    Expanded = 2
 }

@@ -38,6 +38,7 @@ import {
     SnippetString,
     MarkdownString,
     ThemeColor,
+    ThemeIcon,
     TextEditorRevealType,
     TextEditorLineNumbersStyle,
     DecorationRangeBehavior,
@@ -58,7 +59,9 @@ import {
     ParameterInformation,
     SignatureInformation,
     SignatureHelp,
-    Hover
+    Hover,
+    TreeItem,
+    TreeItemCollapsibleState
 } from './types-impl';
 import { EditorsAndDocumentsExtImpl } from './editors-and-documents';
 import { TextEditorsExtImpl } from './text-editors';
@@ -71,6 +74,7 @@ import { TerminalServiceExtImpl } from './terminal-ext';
 import { LanguagesExtImpl, score } from './languages';
 import { fromDocumentSelector } from './type-converters';
 import { DialogsExtImpl } from './dialogs';
+import { TreeViewsExtImpl } from './tree/tree-views';
 
 export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager): PluginAPIFactory {
     const commandRegistryExt = rpc.set(MAIN_RPC_CONTEXT.COMMAND_REGISTRY_EXT, new CommandRegistryImpl(rpc));
@@ -88,6 +92,7 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
     const preferenceRegistryExt = rpc.set(MAIN_RPC_CONTEXT.PREFERENCE_REGISTRY_EXT, new PreferenceRegistryExtImpl(rpc));
     const outputChannelRegistryExt = new OutputChannelRegistryExt(rpc);
     const languagesExt = rpc.set(MAIN_RPC_CONTEXT.LANGUAGES_EXT, new LanguagesExtImpl(rpc, documents));
+    const treeViewsExt = new TreeViewsExtImpl();
 
     return function (plugin: InternalPlugin): typeof theia {
         const commands: typeof theia.commands = {
@@ -197,7 +202,6 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
             onDidChangeWindowState(listener, thisArg?, disposables?): theia.Disposable {
                 return windowStateExt.onDidChangeWindowState(listener, thisArg, disposables);
             },
-
             createTerminal(nameOrOptions: theia.TerminalOptions | (string | undefined), shellPath?: string, shellArgs?: string[]): theia.Terminal {
                 return terminalExt.createTerminal(nameOrOptions, shellPath, shellArgs);
             },
@@ -207,9 +211,14 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
             set onDidCloseTerminal(event: theia.Event<theia.Terminal>) {
                 terminalExt.onDidCloseTerminal = event;
             },
-
             createTextEditorDecorationType(options: theia.DecorationRenderOptions): theia.TextEditorDecorationType {
                 return editors.createTextEditorDecorationType(options);
+            },
+            registerTreeDataProvider<T>(viewId: string, treeDataProvider: theia.TreeDataProvider<T>): Disposable {
+                return treeViewsExt.registerTreeDataProvider(viewId, treeDataProvider);
+            },
+            createTreeView<T>(viewId: string, options: { treeDataProvider: theia.TreeDataProvider<T> }): theia.TreeView<T> {
+                return treeViewsExt.createTreeView(viewId, options);
             }
         };
 
@@ -344,6 +353,7 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
             TextEditorCursorStyle,
             TextEditorLineNumbersStyle,
             ThemeColor,
+            ThemeIcon,
             SnippetString,
             DecorationRangeBehavior,
             OverviewRulerLane,
@@ -364,6 +374,8 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
             SignatureInformation,
             SignatureHelp,
             Hover,
+            TreeItem,
+            TreeItemCollapsibleState
         };
     };
 }
