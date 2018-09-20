@@ -15,7 +15,7 @@
  ********************************************************************************/
 
 import { DebugConfiguration, DebugSessionState } from '../common/debug-common';
-import { Disposable } from '@theia/core';
+import { Event, Disposable } from '@theia/core';
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 /**
@@ -26,10 +26,12 @@ export const DebugSession = Symbol('DebugSession');
 /**
  * The debug session.
  */
+// FIXME get rid of NodeJS.EventEmitter, replace with core events
 export interface DebugSession extends Disposable, NodeJS.EventEmitter {
     readonly sessionId: string;
     readonly configuration: DebugConfiguration;
     readonly state: DebugSessionState;
+    readonly onDidOutput: Event<DebugProtocol.OutputEvent>;
 
     initialize(args: DebugProtocol.InitializeRequestArguments): Promise<DebugProtocol.InitializeResponse>;
     configurationDone(): Promise<DebugProtocol.ConfigurationDoneResponse>;

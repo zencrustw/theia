@@ -64,6 +64,7 @@ import { BreakpointStorage } from './breakpoint/breakpoint-marker';
 import { SourceOpener } from './debug-utils';
 import { BreakpointsApplier } from './breakpoint/breakpoint-applier';
 import { DebugToolBar } from './view/debug-toolbar-widget';
+import { DebugConsoleSession } from './debug-console-session';
 
 export const DEBUG_VARIABLES_PROPS = <TreeProps>{
     ...defaultTreeProps,
@@ -95,6 +96,7 @@ function bindDebugWidget(bind: interfaces.Bind): void {
         }
     })).inSingletonScope();
 
+    bind(DebugConsoleSession).toSelf().inSingletonScope();
     bind(DebugFrontendContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toDynamicValue(ctx => ctx.container.get(DebugFrontendContribution));
     bind(DebugSelectionService).toSelf().inSingletonScope();

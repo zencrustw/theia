@@ -52,6 +52,7 @@ export class MonacoEditor implements TextEditor {
 
     protected readonly autoSizing: boolean;
     protected readonly minHeight: number;
+    protected readonly maxHeight: number;
     protected editor: IStandaloneCodeEditor;
 
     protected readonly onCursorPositionChangedEmitter = new Emitter<Position>();
@@ -84,6 +85,7 @@ export class MonacoEditor implements TextEditor {
         this.documents.add(document);
         this.autoSizing = options && options.autoSizing !== undefined ? options.autoSizing : false;
         this.minHeight = options && options.minHeight !== undefined ? options.minHeight : -1;
+        this.maxHeight = options && options.maxHeight !== undefined ? options.maxHeight : -1;
         this.toDispose.push(this.create(options, override));
         this.addHandlers(this.editor);
     }
@@ -327,11 +329,17 @@ export class MonacoEditor implements TextEditor {
         const horizontalScrollbarHeight = configuration.layoutInfo.horizontalScrollbarHeight;
 
         const editorHeight = contentHeight + horizontalScrollbarHeight;
-        if (this.minHeight < 0) {
-            return editorHeight;
+        if (this.minHeight >= 0) {
+            const minHeight = lineHeight * this.minHeight + horizontalScrollbarHeight;
+            if (editorHeight < minHeight) {
+                return minHeight;
+            }
         }
-        const defaultHeight = lineHeight * this.minHeight + horizontalScrollbarHeight;
-        return Math.max(defaultHeight, editorHeight);
+        if (this.maxHeight >= 0) {
+            const maxHeight = lineHeight * this.maxHeight + horizontalScrollbarHeight;
+            return Math.min(maxHeight, editorHeight);
+        }
+        return editorHeight;
     }
 
     isActionSupported(id: string): boolean {
@@ -446,12 +454,19 @@ export namespace MonacoEditor {
          */
         autoSizing?: boolean;
         /**
-         * A minimal height of an editor.
+         * A minimal height of an editor in lines.
          *
          * #### Fixme
          * remove when https://github.com/Microsoft/monaco-editor/issues/103 is resolved
          */
         minHeight?: number;
+        /**
+         * A maximal height of an editor in lines.
+         *
+         * #### Fixme
+         * remove when https://github.com/Microsoft/monaco-editor/issues/103 is resolved
+         */
+        maxHeight?: number;
     }
 
     export interface IOptions extends ICommonOptions, IEditorConstructionOptions { }

@@ -63,11 +63,16 @@ const INITIALIZE_ARGUMENTS = {
 /**
  * DebugSession implementation.
  */
+// FIXME: get rid of Node.js EventEmitter from browser modulde, replace with core Emitter
 export class DebugSessionImpl extends EventEmitter implements DebugSession {
     protected readonly callbacks = new Map<number, (response: DebugProtocol.Response) => void>();
     protected readonly connection: Promise<WebSocketChannel>;
 
+    protected readonly onDidOutputEmitter = new Emitter<DebugProtocol.OutputEvent>();
+    readonly onDidOutput: Event<DebugProtocol.OutputEvent> = this.onDidOutputEmitter.event;
+
     protected readonly toDispose = new DisposableCollection(
+        this.onDidOutputEmitter,
         Disposable.create(() => this.callbacks.clear())
     );
 
@@ -223,6 +228,10 @@ export class DebugSessionImpl extends EventEmitter implements DebugSession {
     }
 
     protected proceedEvent(event: DebugProtocol.Event): void {
+        if (event.event === 'output') {
+            this.onDidOutputEmitter.fire(<DebugProtocol.OutputEvent>event);
+        }
+        // FIXME: replace with core events
         this.emit(event.event, event);
         this.emit('*', event);
     }

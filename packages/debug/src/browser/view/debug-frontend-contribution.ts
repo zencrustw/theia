@@ -33,6 +33,9 @@ import { ExtDebugProtocol } from '@theia/debug/src/common/debug-common';
 import { Disposable } from '@theia/core';
 import { DebugStyles } from './base/debug-styles';
 import { DebugToolBar } from './debug-toolbar-widget';
+import { DebugConsoleSession } from '../debug-console-session';
+import { ConsoleManager } from '@theia/console/lib/browser/console-manager';
+import { ConsoleUri } from '@theia/console/lib/browser/console-uri';
 
 export const DEBUG_FACTORY_ID = 'debug';
 
@@ -111,10 +114,12 @@ export class DebugWidget extends BaseWidget {
 
 @injectable()
 export class DebugFrontendContribution implements FrontendApplicationContribution {
-    constructor(
-        @inject(ApplicationShell) protected readonly shell: ApplicationShell,
-        @inject(WidgetManager) protected readonly widgetManager: WidgetManager,
-        @inject(DebugSessionManager) protected readonly debugSessionManager: DebugSessionManager) { }
+
+    @inject(ApplicationShell) protected readonly shell: ApplicationShell;
+    @inject(WidgetManager) protected readonly widgetManager: WidgetManager;
+    @inject(DebugSessionManager) protected readonly debugSessionManager: DebugSessionManager;
+    @inject(DebugConsoleSession) protected readonly consoleSession: DebugConsoleSession;
+    @inject(ConsoleManager) protected readonly consoleManager: ConsoleManager;
 
     @postConstruct()
     protected init() {
@@ -123,7 +128,16 @@ export class DebugFrontendContribution implements FrontendApplicationContributio
         this.debugSessionManager.findAll().forEach(debugSession => this.createDebugWidget(debugSession));
     }
 
-    initialize(): void { }
+    initialize(): void {
+        (async () => {
+            const console = await this.consoleManager.open(ConsoleUri.encode({ id: 'debug', }), {
+                widgetOptions: {
+                    area: 'bottom'
+                }
+            });
+            console.session = this.consoleSession;
+        })();
+    }
 
     private async onDebugSessionCreated(debugSession: DebugSession): Promise<void> {
         this.createDebugWidget(debugSession);
@@ -137,7 +151,7 @@ export class DebugFrontendContribution implements FrontendApplicationContributio
 
         const tabBar = this.shell.getTabBarFor(widget);
         if (!tabBar) {
-            this.shell.addWidget(widget, { area: 'bottom' });
+            this.shell.addWidget(widget, { area: 'left' });
         }
         this.shell.activateWidget(widget.id);
     }
