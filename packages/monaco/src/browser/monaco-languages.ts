@@ -16,11 +16,13 @@
 
 import { injectable, inject, decorate } from 'inversify';
 import { MonacoLanguages as BaseMonacoLanguages, ProtocolToMonacoConverter, MonacoToProtocolConverter } from 'monaco-languageclient';
-import { Languages, DiagnosticCollection, Language } from '@theia/languages/lib/browser';
+import { Languages, Diagnostic, DiagnosticCollection, Language } from '@theia/languages/lib/browser';
 import { ProblemManager } from '@theia/markers/lib/browser/problem/problem-manager';
 import URI from '@theia/core/lib/common/uri';
+import { Mutable } from '@theia/core/lib/common/types';
+import { Disposable } from '@theia/core/lib/common/disposable';
 import { WorkspaceSymbolProvider } from 'monaco-languageclient/lib/services';
-import { Disposable } from 'vscode-jsonrpc';
+import { MonacoDiagnosticCollection } from 'monaco-languageclient/lib/monaco-diagnostic-collection';
 
 decorate(injectable(), BaseMonacoLanguages);
 decorate(inject(ProtocolToMonacoConverter), BaseMonacoLanguages, 0);
@@ -31,27 +33,52 @@ export class MonacoLanguages extends BaseMonacoLanguages implements Languages {
 
     readonly workspaceSymbolProviders: WorkspaceSymbolProvider[] = [];
 
+    protected readonly makers = new Map<string, MonacoDiagnosticCollection>();
+
     constructor(
         @inject(ProtocolToMonacoConverter) p2m: ProtocolToMonacoConverter,
         @inject(MonacoToProtocolConverter) m2p: MonacoToProtocolConverter,
         @inject(ProblemManager) protected readonly problemManager: ProblemManager
     ) {
         super(p2m, m2p);
+        for (const uri of this.problemManager.getUris()) {
+            this.updateMarkers(new URI(uri));
+        }
+        this.problemManager.onDidChangeMarkers(uri => this.updateMarkers(uri));
+    }
+
+    protected updateMarkers(uri: URI): void {
+        const uriString = uri.toString();
+        const owners = new Map<string, Diagnostic[]>();
+        for (const marker of this.problemManager.findMarkers({ uri })) {
+            const diagnostics = owners.get(marker.owner) || [];
+            diagnostics.push(marker.data);
+            owners.set(marker.owner, diagnostics);
+        }
+        const toClean = new Set<string>(this.makers.keys());
+        for (const [owner, diagnostics] of owners) {
+            toClean.delete(owner);
+            const collection = this.makers.get(owner) || new MonacoDiagnosticCollection(owner, this.p2m);
+            collection.set(uriString, diagnostics);
+            this.makers.set(owner, collection);
+        }
+        for (const owner of toClean) {
+            const collection = this.makers.get(owner);
+            if (collection) {
+                collection.set(uriString, []);
+            }
+        }
     }
 
     createDiagnosticCollection(name?: string): DiagnosticCollection {
-        // FIXME: Monaco model markers should be created based on Theia problem markers
-        const monacoCollection = super.createDiagnosticCollection(name);
         const owner = name || 'default';
         const uris: string[] = [];
         return {
             set: (uri, diagnostics) => {
-                monacoCollection.set(uri, diagnostics);
                 this.problemManager.setMarkers(new URI(uri), owner, diagnostics);
                 uris.push(uri);
             },
             dispose: () => {
-                monacoCollection.dispose();
                 for (const uri of uris) {
                     this.problemManager.setMarkers(new URI(uri), owner, []);
                 }
@@ -70,11 +97,43 @@ export class MonacoLanguages extends BaseMonacoLanguages implements Languages {
     }
 
     get languages(): Language[] {
-        const monacoLanguages: monaco.languages.ILanguageExtensionPoint[] = monaco.languages.getLanguages();
-        return monacoLanguages.map((monacoLang: monaco.languages.ILanguageExtensionPoint) => ({
-            id: monacoLang.id,
-            name: monacoLang.aliases && monacoLang.aliases.length > 0 ? monacoLang.aliases[0] : monacoLang.id
-        }));
+        return [...this.mergeLanguages(monaco.languages.getLanguages()).values()];
+    }
+
+    getLanguage(languageId: string): Language | undefined {
+        return this.mergeLanguages(monaco.languages.getLanguages().filter(language => language.id === languageId)).get(languageId);
+    }
+
+    protected mergeLanguages(registered: monaco.languages.ILanguageExtensionPoint[]): Map<string, Mutable<Language>> {
+        const languages = new Map<string, Mutable<Language>>();
+        for (const { id, aliases, extensions, filenames } of registered) {
+            const merged = languages.get(id) || {
+                id,
+                name: '',
+                extensions: new Set(),
+                filenames: new Set()
+            };
+            if (!merged.name && aliases && aliases.length) {
+                merged.name = aliases[0];
+            }
+            if (extensions && extensions.length) {
+                for (const extension of extensions) {
+                    merged.extensions.add(extension);
+                }
+            }
+            if (filenames && filenames.length) {
+                for (const filename of filenames) {
+                    merged.filenames.add(filename);
+                }
+            }
+            languages.set(id, merged);
+        }
+        for (const [id, language] of languages) {
+            if (!language.name) {
+                language.name = id;
+            }
+        }
+        return languages;
     }
 
 }

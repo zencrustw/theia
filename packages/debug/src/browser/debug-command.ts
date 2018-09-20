@@ -24,6 +24,7 @@ import { DebugSelectionService } from './view/debug-selection-service';
 import { SingleTextInputDialog } from '@theia/core/lib/browser/dialogs';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { BreakpointsDialog } from './view/debug-breakpoints-widget';
+import { DebugSession } from './debug-model';
 
 export const DEBUG_SESSION_CONTEXT_MENU: MenuPath = ['debug-session-context-menu'];
 export const DEBUG_SESSION_THREAD_CONTEXT_MENU: MenuPath = ['debug-session-thread-context-menu'];
@@ -58,36 +59,39 @@ export namespace DEBUG_COMMANDS {
 
     export const STOP = {
         id: 'debug.stop',
-        label: 'Stop'
+        label: 'Stop',
+        iconClass: 'theia-debug-stop'
     };
 
     export const OPEN_CONFIGURATION = {
         id: 'debug.configuration.open',
-        label: 'Open configuration'
+        label: 'Open Configuration'
     };
 
     export const ADD_CONFIGURATION = {
         id: 'debug.configuration.add',
-        label: 'Add configuration'
+        label: 'Add Configuration'
     };
 
     export const SUSPEND_THREAD = {
         id: 'debug.thread.suspend',
-        label: 'Suspend thread'
+        label: 'Suspend Thread'
     };
 
     export const RESUME_THREAD = {
         id: 'debug.thread.resume',
-        label: 'Resume thread'
+        label: 'Resume Thread'
     };
     export const SUSPEND_ALL_THREADS = {
         id: 'debug.thread.suspend.all',
-        label: 'Suspend'
+        label: 'Suspend',
+        iconClass: 'theia-debug-thread-suspend-all'
     };
 
     export const RESUME_ALL_THREADS = {
         id: 'debug.thread.resume.all',
-        label: 'Resume'
+        label: 'Resume',
+        iconClass: 'theia-debug-thread-resume-all'
     };
 
     export const MODIFY_VARIABLE = {
@@ -102,17 +106,20 @@ export namespace DEBUG_COMMANDS {
 
     export const STEP = {
         id: 'debug.thread.next',
-        label: 'Step'
+        label: 'Step',
+        iconClass: 'theia-debug-step-over'
     };
 
     export const STEPIN = {
         id: 'debug.thread.stepin',
-        label: 'Step in'
+        label: 'Step In',
+        iconClass: 'theia-debug-step-in'
     };
 
     export const STEPOUT = {
         id: 'debug.thread.stepout',
-        label: 'Step out'
+        label: 'Step Out',
+        iconClass: 'theia-debug-step-out'
     };
 }
 
@@ -209,17 +216,8 @@ export class DebugCommandHandlers implements MenuContribution, CommandContributi
     }
 
     registerCommands(registry: CommandRegistry): void {
-        registry.registerCommand(DEBUG_COMMANDS.START);
-        registry.registerHandler(DEBUG_COMMANDS.START.id, {
-            execute: () => {
-                this.debugConfigurationManager.selectConfiguration()
-                    .then(configuration => this.debug.resolveDebugConfiguration(configuration))
-                    .then(configuration => this.debug.start(configuration).then(sessionId => ({ sessionId, configuration })))
-                    .then(({ sessionId, configuration }) => this.debugSessionManager.create(sessionId, configuration))
-                    .catch(error => console.log(error));
-            },
-            isEnabled: () => true,
-            isVisible: () => true
+        registry.registerCommand(DEBUG_COMMANDS.START, {
+            execute: () => this.start()
         });
 
         registry.registerCommand(DEBUG_COMMANDS.STOP);
@@ -407,6 +405,13 @@ export class DebugCommandHandlers implements MenuContribution, CommandContributi
                 return !!selection && !!selection.variable;
             }
         });
+    }
+
+    async start(): Promise<DebugSession> {
+        const configuration = await this.debugConfigurationManager.selectConfiguration();
+        await this.debug.resolveDebugConfiguration(configuration);
+        const session = await this.debug.create(configuration);
+        return await this.debugSessionManager.create(session, configuration);
     }
 
     private isSelectedThreadSuspended(): boolean {

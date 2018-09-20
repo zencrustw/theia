@@ -38,6 +38,10 @@ export class MarkerCollection<T> {
         public readonly kind: string
     ) { }
 
+    get empty(): boolean {
+        return !this.owner2Markers.size;
+    }
+
     getOwners(): string[] {
         return Array.from(this.owner2Markers.keys());
     }
@@ -127,11 +131,7 @@ export abstract class MarkerManager<D extends object> {
         for (const uriString of this.uri2MarkerCollection.keys()) {
             const uri = new URI(uriString);
             if (FileChangeEvent.isDeleted(event, uri)) {
-                const collection = this.uri2MarkerCollection.get(uriString);
-                if (collection !== undefined) {
-                    this.uri2MarkerCollection.delete(uriString);
-                    this.fireOnDidChangeMarkers(uri);
-                }
+                this.cleanAllMarkers(uri);
             }
         }
     }
@@ -151,10 +151,10 @@ export abstract class MarkerManager<D extends object> {
         const uriString = uri.toString();
         const collection = this.uri2MarkerCollection.get(uriString) || new MarkerCollection<D>(uri, this.getKind());
         const oldMarkers = collection.setMarkers(owner, data);
-        if (data.length > 0) {
-            this.uri2MarkerCollection.set(uriString, collection);
-        } else {
+        if (collection.empty) {
             this.uri2MarkerCollection.delete(uri.toString());
+        } else {
+            this.uri2MarkerCollection.set(uriString, collection);
         }
         this.fireOnDidChangeMarkers(uri);
         return oldMarkers;
@@ -177,6 +177,15 @@ export abstract class MarkerManager<D extends object> {
 
     getUris(): Iterable<string> {
         return this.uri2MarkerCollection.keys();
+    }
+
+    cleanAllMarkers(uri: URI): void {
+        const uriString = uri.toString();
+        const collection = this.uri2MarkerCollection.get(uriString);
+        if (collection !== undefined) {
+            this.uri2MarkerCollection.delete(uriString);
+            this.fireOnDidChangeMarkers(uri);
+        }
     }
 
 }
