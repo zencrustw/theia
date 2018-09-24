@@ -55,6 +55,9 @@ import {
     DiagnosticSeverity,
     DiagnosticTag,
     Location,
+    Progress,
+    ProgressOptions,
+    ProgressLocation,
     ParameterInformation,
     SignatureInformation,
     SignatureHelp,
@@ -71,6 +74,9 @@ import { TerminalServiceExtImpl } from './terminal-ext';
 import { LanguagesExtImpl, score } from './languages';
 import { fromDocumentSelector } from './type-converters';
 import { DialogsExtImpl } from './dialogs';
+import { Thenable } from 'es6-promise';
+import { NotificationExtImpl } from './notification';
+import { StatusBarExtImpl } from './statusBar';
 
 export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager): PluginAPIFactory {
     const commandRegistryExt = rpc.set(MAIN_RPC_CONTEXT.COMMAND_REGISTRY_EXT, new CommandRegistryImpl(rpc));
@@ -78,6 +84,8 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
     const dialogsExt = new DialogsExtImpl(rpc);
     const messageRegistryExt = new MessageRegistryExt(rpc);
     const windowStateExt = rpc.set(MAIN_RPC_CONTEXT.WINDOW_STATE_EXT, new WindowStateExtImpl());
+    const notificationExt = rpc.set(MAIN_RPC_CONTEXT.NOTIFICATION_EXT, new NotificationExtImpl(rpc));
+    const statusBarExt = new StatusBarExtImpl(rpc);
     const editorsAndDocuments = rpc.set(MAIN_RPC_CONTEXT.EDITORS_AND_DOCUMENTS_EXT, new EditorsAndDocumentsExtImpl(rpc));
     const editors = rpc.set(MAIN_RPC_CONTEXT.TEXT_EDITORS_EXT, new TextEditorsExtImpl(rpc, editorsAndDocuments));
     const documents = rpc.set(MAIN_RPC_CONTEXT.DOCUMENTS_EXT, new DocumentsExtImpl(rpc, editorsAndDocuments));
@@ -210,6 +218,18 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
 
             createTextEditorDecorationType(options: theia.DecorationRenderOptions): theia.TextEditorDecorationType {
                 return editors.createTextEditorDecorationType(options);
+            },
+            withProgress<R>(
+                options: ProgressOptions,
+                task: (progress: Progress<{ message?: string; increment?: number }>, token: theia.CancellationToken) => Thenable<R>
+            ): Thenable<R> {
+                switch (options.location) {
+                    case ProgressLocation.Notification: return notificationExt.withProgress(options, task);
+                    case ProgressLocation.Window: return statusBarExt.withProgress(options, task);
+                    case ProgressLocation.SourceControl: return new Promise(() => {
+                        console.error('Progress location \'SourceControl\' is not supported.');
+                    });
+                }
             }
         };
 
@@ -366,6 +386,9 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
             Diagnostic,
             CompletionTriggerKind,
             TextEdit,
+            ProgressLocation,
+            ProgressOptions,
+            Progress,
             ParameterInformation,
             SignatureInformation,
             SignatureHelp,

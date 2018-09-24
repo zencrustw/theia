@@ -16,11 +16,13 @@
 
 import { injectable, inject } from 'inversify';
 import {
+    Message,
     MessageClient,
     MessageType,
-    Message
+    ProgressMessage,
+    ProgressMessageArguments
 } from '@theia/core/lib/common';
-import { Notifications, NotificationAction } from './notifications';
+import { NotificationAction, NotificationProperties, Notifications } from './notifications';
 import { NotificationPreferences } from './notification-preferences';
 
 @injectable()
@@ -33,7 +35,23 @@ export class NotificationsMessageClient extends MessageClient {
         return this.show(message);
     }
 
+    getOrCreateProgressMessage(message: ProgressMessageArguments): ProgressMessage | undefined {
+        const messageArguments = {type: MessageType.Progress, text: message.text, options: { timeout: 0 }, actions: message.actions};
+        const key = this.getKey(messageArguments);
+        if (this.visibleProgressMessages.has(key)) {
+            return this.visibleProgressMessages.get(key);
+        }
+        const progressNotification = this.notifications.create(this.getNotificationProperties(
+            messageArguments,
+            () => {
+                this.visibleProgressMessages.delete(key);
+            }));
+        this.visibleProgressMessages.set(key, progressNotification);
+        return progressNotification;
+    }
+
     protected visibleMessages = new Set<string>();
+    protected visibleProgressMessages = new Map<string, ProgressMessage>();
     protected show(message: Message): Promise<string | undefined> {
         const key = this.getKey(message);
         if (this.visibleMessages.has(key)) {
@@ -41,10 +59,10 @@ export class NotificationsMessageClient extends MessageClient {
         }
         this.visibleMessages.add(key);
         return new Promise(resolve => {
-            this.showToast(message, a => {
+            this.notifications.show(this.getNotificationProperties(message, a => {
                 this.visibleMessages.delete(key);
                 resolve(a);
-            });
+            }));
         });
     }
 
@@ -52,7 +70,7 @@ export class NotificationsMessageClient extends MessageClient {
         return `${m.type}-${m.text}-${m.actions ? m.actions.join('|') : '|'}`;
     }
 
-    protected showToast(message: Message, onCloseFn: (action: string | undefined) => void): void {
+    protected getNotificationProperties(message: Message, onCloseFn: (action: string | undefined) => void): NotificationProperties {
         const icon = this.iconFor(message.type);
         const text = message.text;
         const actions = (message.actions || []).map(action => <NotificationAction>{
@@ -69,21 +87,20 @@ export class NotificationsMessageClient extends MessageClient {
             label: 'Close',
             fn: element => onCloseFn(undefined)
         });
-        this.notifications.show({
+        return {
             icon,
             text,
             actions,
             timeout
-        });
+        };
     }
 
     protected iconFor(type: MessageType): string {
-        if (type === MessageType.Error) {
-            return 'error';
+        switch (type) {
+            case MessageType.Error: return 'error';
+            case MessageType.Warning: return 'warning';
+            case MessageType.Progress: return 'progress';
+            default: return 'info';
         }
-        if (type === MessageType.Warning) {
-            return 'warning';
-        }
-        return 'info';
     }
 }

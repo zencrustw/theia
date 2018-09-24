@@ -13,6 +13,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
+import { Emitter, Event, ProgressMessage } from '@theia/core';
 
 export const NOTIFICATIONS_CONTAINER = 'theia-NotificationsContainer';
 export const NOTIFICATION = 'theia-Notification';
@@ -41,6 +42,9 @@ export class Notifications {
 
     protected container: Element;
 
+    private readonly onCancelEmitter: Emitter<void> = new Emitter<void>();
+    private readonly oncCancel: Event<void> = this.onCancelEmitter.event;
+
     constructor(protected parent?: Element) {
         this.parent = parent || document.body;
         this.container = this.createNotificationsContainer(this.parent);
@@ -49,6 +53,10 @@ export class Notifications {
     show(properties: NotificationProperties): void {
         const notificationElement = this.createNotificationElement(properties);
         this.container.appendChild(notificationElement);
+    }
+
+    create(properties: NotificationProperties): ProgressMessage {
+        return new ProgressNotification(this.container, this.createNotificationElement(properties), this.oncCancel, properties);
     }
 
     protected createNotificationsContainer(parentContainer: Element): Element {
@@ -61,18 +69,34 @@ export class Notifications {
         const fragment = document.createDocumentFragment();
         const element = fragment.appendChild(document.createElement('div'));
         element.classList.add(NOTIFICATION);
+        element.id = 'notification-container-' + properties.text;
         const iconContainer = element.appendChild(document.createElement('div'));
         iconContainer.classList.add(ICON);
         const icon = iconContainer.appendChild(document.createElement('i'));
-        icon.classList.add('fa', this.toIconClass(properties.icon), 'fa-fw', properties.icon);
+        icon.classList.add(
+            'fa',
+            this.toIconClass(properties.icon),
+        );
+        if (properties.icon === 'progress') {
+            icon.classList.add('fa-pulse');
+        }
+        icon.classList.add(
+            'fa-fw',
+            properties.icon
+        );
         const textContainer = element.appendChild(document.createElement('div'));
         textContainer.classList.add(TEXT);
         const text = textContainer.appendChild(document.createElement('p'));
+        text.id = 'notification-text-' + properties.text;
         text.innerText = properties.text;
+        const handler = <Notification>{ element, properties };
         const close = () => {
             element.remove();
+            const actions = properties.actions;
+            if (actions) {
+                actions.filter(action => action.label === 'Close').forEach(action => action.fn(<Notification>{ element, properties }));
+            }
         };
-        const handler = <Notification>{ element, properties };
         const buttons = element.appendChild(document.createElement('div'));
         buttons.classList.add(BUTTONS);
 
@@ -91,6 +115,7 @@ export class Notifications {
                     }
                     action.fn(handler);
                     close();
+                    this.onCancelEmitter.fire(undefined);
                 });
             }
         }
@@ -98,13 +123,77 @@ export class Notifications {
     }
 
     protected toIconClass(icon: string): string {
-        if (icon === 'error') {
-            return 'fa-times-circle';
+        switch (icon) {
+            case 'error': return 'fa-times-circle';
+            case 'Warning': return 'fa-warning';
+            case 'progress': return 'fa-spinner';
+            default: return 'fa-info-circle';
         }
-        if (icon === 'warning') {
-            return 'fa-warning';
-        }
-        return 'fa-info-circle';
     }
 
+}
+
+class ProgressNotification implements ProgressMessage {
+    private increment: number = 0;
+    private readonly node: Node;
+    private readonly container: Element;
+    private readonly properties: NotificationProperties;
+
+    readonly onCancel: Event<void>;
+
+    constructor(container: Element, node: Node, oncCancel: Event<void>, properties: NotificationProperties) {
+        this.node = node;
+        this.onCancel = oncCancel;
+        this.container = container;
+        this.properties = properties;
+    }
+
+    close(): void {
+        const element = document.getElementById('notification-container-' + this.properties.text);
+        if (!element) {
+            return;
+        }
+        element.remove();
+        const actions = this.properties.actions;
+        if (!actions) {
+            return;
+        }
+        actions.filter(action => action.label === 'Close')
+            .forEach(action => action.fn(
+                <Notification>{
+                    element,
+                    properties: this.properties
+                })
+            );
+    }
+
+    show(): void {
+        let container = document.getElementById('notification-container-' + this.properties.text);
+        if (!container) {
+            this.container.appendChild(this.node);
+        }
+        container = document.getElementById('notification-container-' + this.properties.text);
+        if (container) {
+            const progressContainer = container.appendChild(document.createElement('div'));
+            progressContainer.className = 'progress';
+            const progress = progressContainer.appendChild(document.createElement('p'));
+            progress.id = 'notification-progress-' + this.properties.text;
+        }
+    }
+
+    update(item: { message?: string, increment?: number }): void {
+        const textElement = document.getElementById('notification-text-' + this.properties.text);
+        if (textElement) {
+            if (item.increment) {
+                this.increment = this.increment + item.increment;
+                this.increment = this.increment > 100 ? 100 : this.increment;
+
+                const progressElement = document.getElementById('notification-progress-' + this.properties.text);
+                if (progressElement) {
+                    progressElement.innerText = this.increment + '%';
+                }
+            }
+            textElement.innerText = this.properties.text + (item.message ? ': ' + item.message : '');
+        }
+    }
 }

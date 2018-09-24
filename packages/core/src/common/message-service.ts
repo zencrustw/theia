@@ -15,7 +15,7 @@
  ********************************************************************************/
 
 import { injectable, inject } from 'inversify';
-import { MessageClient, MessageType, MessageOptions } from './message-service-protocol';
+import { MessageClient, MessageType, MessageOptions, ProgressMessage } from './message-service-protocol';
 
 @injectable()
 export class MessageService {
@@ -50,6 +50,10 @@ export class MessageService {
     // tslint:disable-next-line:no-any
     error(message: string, ...args: any[]): Promise<string | undefined> {
         return this.processMessage(MessageType.Error, message, args);
+    }
+
+    getOrCreateProgressMessage(message: string, ...actions: string[]): ProgressMessage | undefined {
+        return this.client.getOrCreateProgressMessage({ text: message, actions });
     }
 
     // tslint:disable-next-line:no-any

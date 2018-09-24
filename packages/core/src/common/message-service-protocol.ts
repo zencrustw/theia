@@ -16,6 +16,7 @@
 
 import { injectable, inject } from 'inversify';
 import { ILogger } from './logger';
+import { Event } from '../common/event';
 
 export const messageServicePath = '/services/messageService';
 
@@ -23,7 +24,8 @@ export enum MessageType {
     Error = 1,
     Warning = 2,
     Info = 3,
-    Log = 4
+    Log = 4,
+    Progress = 5
 }
 
 export interface Message {
@@ -31,6 +33,18 @@ export interface Message {
     text: string;
     actions?: string[];
     options?: MessageOptions;
+}
+
+export interface ProgressMessage {
+    show(): void;
+    close(): void;
+    update(item: { message?: string, increment?: number }): void;
+    onCancel: Event<void>;
+}
+
+export interface ProgressMessageArguments {
+    text: string;
+    actions?: string[];
 }
 
 export interface MessageOptions {
@@ -53,7 +67,17 @@ export class MessageClient {
         this.logger.info(message.text);
         return Promise.resolve(undefined);
     }
-}
+
+    /**
+     * Create progress message instance.
+     * If a progress message with given text is already shown, returns the shown instance.
+     *
+     * To be implemented by an extension, e.g. by the messages extension.
+     */
+    getOrCreateProgressMessage(message: ProgressMessageArguments): ProgressMessage | undefined {
+        this.logger.info(message.text);
+        return undefined;
+    }}
 
 @injectable()
 export class DispatchingMessageClient extends MessageClient {
