@@ -21,6 +21,7 @@ import { ConsoleContribution } from './console-contribution';
 import { ConsoleWidget, ConsoleOptions } from './console-widget';
 import { ConsoleManager } from './console-manager';
 import { ConsoleInputFocusContext } from './console-keybinding-contexts';
+import { createConsoleContentContainer } from './content/console-content-container';
 
 import '../../src/browser/style/index.css';
 
@@ -30,7 +31,7 @@ export default new ContainerModule(bind => {
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: ConsoleManager.ID,
         createWidget: (options: ConsoleOptions) => {
-            const child = container.createChild();
+            const child = createConsoleContentContainer(container);
             child.bind(ConsoleOptions).toConstantValue(options);
             return child.get(ConsoleWidget);
         }

@@ -14,27 +14,20 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-.theia-console-widget {
-    color: var(--theia-content-font-color0);
-    font-size: var(--theia-content-font-size);
-}
+import { interfaces, Container } from 'inversify';
+import { createTreeContainer, Tree, TreeImpl, TreeWidget } from '@theia/core/lib/browser';
+import { ConsoleContentTree } from './console-content-tree';
+import { ConsoleContentWidget } from './console-content-widget';
 
-.theia-console-input {
-    padding-left: 20px;
-	border-top: var(--theia-panel-border-width) solid var(--theia-border-color1);
-}
+export function createConsoleContentContainer(parent: interfaces.Container): Container {
+    const child = createTreeContainer(parent);
 
-.theia-console-input:before {
-	left: 8px;
-	position: absolute;
-    content: '\276f';
-	line-height: 18px;
-}
+    child.unbind(TreeImpl);
+    child.bind(ConsoleContentTree).toSelf();
+    child.rebind(Tree).toDynamicValue(ctx => ctx.container.get(ConsoleContentTree));
 
-.theia-console-error {
-    color: var(--theia-error-color2);
-}
+    child.unbind(TreeWidget);
+    child.bind(ConsoleContentWidget).toSelf();
 
-.theia-console-warning {
-    color: var(--theia-warn-color2);
+    return child;
 }

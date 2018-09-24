@@ -9,10 +9,10 @@
     "@theia/filesystem": "^0.3.14",
     "@theia/markers": "^0.3.14",
     "@theia/monaco": "^0.3.14",
-    "@theia/output": "^0.3.14",
     "@theia/process": "^0.3.14",
     "@theia/variable-resolver": "^0.3.14",
     "@theia/workspace": "^0.3.14",
+    "ansi-to-react": "^3.3.3",
     "vscode-debugprotocol": "^1.26.0"
   },
   "publishConfig": {

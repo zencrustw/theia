@@ -14,16 +14,17 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import * as React from 'react';
 import { injectable, inject, postConstruct } from 'inversify';
-import { BaseWidget, PanelLayout, Widget, Message, ReactWidget } from '@theia/core/lib/browser';
-import { ConsoleSession, ConsoleItem } from './console-session';
+import { BaseWidget, PanelLayout, Widget, Message, MessageLoop } from '@theia/core/lib/browser';
+import { ConsoleSession } from './console-session';
 import { DisposableCollection } from '@theia/core/lib/common';
 import { MonacoEditor } from '@theia/monaco/lib/browser/monaco-editor';
 import URI from '@theia/core/lib/common/uri';
 import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model';
 import { ProtocolToMonacoConverter, MonacoToProtocolConverter } from 'monaco-languageclient/lib';
 import { ElementExt } from '@phosphor/domutils';
+import { ConsoleContentWidget } from './content/console-content-widget';
+import { ConsoleSessionNode } from './content/console-content-tree';
 
 export const ConsoleOptions = Symbol('ConsoleWidgetOptions');
 export interface ConsoleOptions {
@@ -53,8 +54,10 @@ export class ConsoleWidget extends BaseWidget {
     @inject(ProtocolToMonacoConverter)
     protected readonly p2m: ProtocolToMonacoConverter;
 
+    @inject(ConsoleContentWidget)
+    protected readonly content: ConsoleContentWidget;
+
     protected input: MonacoEditor;
-    protected content: ConsoleContentWidget;
 
     constructor() {
         super();
@@ -74,10 +77,9 @@ export class ConsoleWidget extends BaseWidget {
 
         const layout = this.layout = new PanelLayout();
 
-        const content = this.content = new ConsoleContentWidget();
-        content.node.className = ConsoleWidget.styles.content;
-        this.toDispose.push(content);
-        layout.addWidget(content);
+        this.content.node.className = ConsoleWidget.styles.content;
+        this.toDispose.push(this.content);
+        layout.addWidget(this.content);
 
         const inputWidget = new Widget();
         inputWidget.node.className = ConsoleWidget.styles.input;
@@ -117,12 +119,11 @@ export class ConsoleWidget extends BaseWidget {
             return;
         }
         this._session = session;
-        this.content.session = session;
+        this.content.model.root = ConsoleSessionNode.to(session);
         if (this._session) {
-            this.toDisposeOnSession.push(this._session.onDidChange(() => this.update()));
+            this.toDisposeOnSession.push(this._session.onDidChange(() => this.content.model.refresh()));
             this.toDispose.push(this.toDisposeOnSession);
         }
-        this.update();
     }
     get session(): ConsoleSession | undefined {
         return this._session;
@@ -132,12 +133,23 @@ export class ConsoleWidget extends BaseWidget {
         return this.input.getControl().hasTextFocus();
     }
 
-    execute(): void {
+    async execute(): Promise<void> {
         const value = this.input.getControl().getValue();
         this.input.getControl().setValue('');
         // TODO: track history
         if (this.session) {
-            this.session.execute(value);
+            const listener = this.content.model.onNodeRefreshed(() => {
+                listener.dispose();
+                this.revealLastOutput();
+            });
+            await this.session.execute(value);
+        }
+    }
+
+    protected revealLastOutput(): void {
+        const { root } = this.content.model;
+        if (ConsoleSessionNode.is(root)) {
+            this.content.model.selectNode(root.children[root.children.length - 1]);
         }
     }
 
@@ -146,14 +158,11 @@ export class ConsoleWidget extends BaseWidget {
         this.input.focus();
     }
 
-    protected onUpdateRequest(msg: Message): void {
-        super.onUpdateRequest(msg);
-        this.content.update();
-    }
-
     protected totalHeight = -1;
+    protected totalWidth = -1;
     protected onResize(msg: Widget.ResizeMessage): void {
         super.onResize(msg);
+        this.totalWidth = msg.width;
         this.totalHeight = msg.height;
         this.input.resizeToFit();
         this.resizeContent();
@@ -164,6 +173,7 @@ export class ConsoleWidget extends BaseWidget {
         const inputHeight = this.input.getControl().getLayoutInfo().height;
         const contentHeight = this.totalHeight - inputHeight;
         this.content.node.style.height = `${contentHeight}px`;
+        MessageLoop.sendMessage(this.content, new Widget.ResizeMessage(this.totalWidth, contentHeight));
     }
 
     protected computeHeight(): number {
@@ -193,23 +203,5 @@ export class ConsoleWidget extends BaseWidget {
             enabled: false
         }
     };
-
-}
-export class ConsoleContentWidget extends ReactWidget {
-
-    session: ConsoleSession | undefined;
-
-    protected render(): React.ReactNode {
-        if (!this.session) {
-            return undefined;
-        }
-        return <React.Fragment>{
-            this.session.items.map((item, key) => this.renderItem(item, key))
-        }</React.Fragment>;
-    }
-    protected renderItem(item: ConsoleItem, key: number): React.ReactNode {
-        const className = ConsoleItem.toClassName(item);
-        return <div key={key} className={className}>{item.render()}</div>;
-    }
 
 }

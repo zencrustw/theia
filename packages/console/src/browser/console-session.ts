@@ -45,8 +45,23 @@ export namespace ConsoleItem {
     }
 }
 
+export interface CompositeConsoleItem extends ConsoleItem {
+    readonly hasChildren: boolean;
+    resolve(): MaybePromise<ConsoleItem[]>;
+}
+export namespace CompositeConsoleItem {
+    // tslint:disable:no-any
+    export function is(item: CompositeConsoleItem | any): item is CompositeConsoleItem {
+        return !!item && 'resolve' in item;
+    }
+    export function hasChildren(item: CompositeConsoleItem | any): item is CompositeConsoleItem {
+        return is(item) && item.hasChildren;
+    }
+}
+
 export interface ConsoleSession {
     readonly id: string
+    readonly name: string
     readonly items: ConsoleItem[]
     readonly onDidChange: Event<void>
     execute(value: string): MaybePromise<void>

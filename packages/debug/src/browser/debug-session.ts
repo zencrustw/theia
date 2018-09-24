@@ -26,7 +26,6 @@ import { DebugProtocol } from 'vscode-debugprotocol';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { Emitter, Event, DisposableCollection, ContributionProvider, Resource, ResourceResolver, Disposable } from '@theia/core';
 import { EventEmitter } from 'events';
-import { OutputChannelManager } from '@theia/output/lib/common/output-channel';
 import { DebugSession, DebugSessionFactory, DebugSessionContribution } from './debug-model';
 import URI from '@theia/core/lib/common/uri';
 import { BreakpointsApplier } from './breakpoint/breakpoint-applier';
@@ -285,7 +284,6 @@ export class DebugSessionManager {
 
     constructor(
         @inject(DebugSessionFactory) protected readonly debugSessionFactory: DebugSessionFactory,
-        @inject(OutputChannelManager) protected readonly outputChannelManager: OutputChannelManager,
         @inject(ContributionProvider) @named(DebugSessionContribution) protected readonly contributions: ContributionProvider<DebugSessionContribution>,
         @inject(BreakpointsApplier) protected readonly breakpointApplier: BreakpointsApplier) {
 
@@ -310,11 +308,6 @@ export class DebugSessionManager {
 
         this.onDidCreateDebugSessionEmitter.fire(session);
 
-        const channel = this.outputChannelManager.getChannel(debugConfiguration.name);
-        session.on('output', event => {
-            const outputEvent = (event as DebugProtocol.OutputEvent);
-            channel.appendLine(outputEvent.body.output);
-        });
         session.on('terminated', () => this.destroy(sessionId));
 
         const initializeArgs: DebugProtocol.InitializeRequestArguments = {
