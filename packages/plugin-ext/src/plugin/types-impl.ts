@@ -895,9 +895,9 @@ export class TreeItem {
     // constructor(public resourceUri: URI, public collapsibleState?: TreeItemCollapsibleState) {
     // }
 
-    constructor(public labelOrURI: string | URI, public collapsibleState?: TreeItemCollapsibleState) {
-        console.log('> creating tree item!!!!');
-    }
+    // constructor(public labelOrURI: string | URI, public collapsibleState?: TreeItemCollapsibleState) {
+    //     console.log('> creating tree item!!!!');
+    // }
 
 }
 

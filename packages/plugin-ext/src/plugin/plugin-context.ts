@@ -92,7 +92,7 @@ export function createAPIFactory(rpc: RPCProtocol, pluginManager: PluginManager)
     const preferenceRegistryExt = rpc.set(MAIN_RPC_CONTEXT.PREFERENCE_REGISTRY_EXT, new PreferenceRegistryExtImpl(rpc));
     const outputChannelRegistryExt = new OutputChannelRegistryExt(rpc);
     const languagesExt = rpc.set(MAIN_RPC_CONTEXT.LANGUAGES_EXT, new LanguagesExtImpl(rpc, documents));
-    const treeViewsExt = new TreeViewsExtImpl();
+    const treeViewsExt = rpc.set(MAIN_RPC_CONTEXT.TREE_VIEWS_EXT, new TreeViewsExtImpl(rpc));
 
     return function (plugin: InternalPlugin): typeof theia {
         const commands: typeof theia.commands = {

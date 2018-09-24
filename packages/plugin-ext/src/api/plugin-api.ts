@@ -312,6 +312,32 @@ export interface DialogsMain {
     $showSaveDialog(options: SaveDialogOptionsMain): Promise<string | undefined>;
 }
 
+export interface TreeViewsMain {
+    $registerTreeDataProvider(treeViewId: string): void;
+    $refresh(treeViewId: string): void;
+    $reveal(treeViewId: string): void;
+}
+
+export interface TreeViewsExt {
+    $getChildren(treeViewId: string): Promise<TreeViewItem[] | undefined>;
+    $setExpanded(treeViewId: string): Promise<any>;
+    $setSelection(treeViewId: string): Promise<any>;
+}
+
+export class TreeViewItem {
+
+    label: string;
+
+    icon?: string;
+
+    resourceUri?: string;
+
+    tooltip?: string;
+
+    collapsibleState?: theia.TreeItemCollapsibleState;
+
+}
+
 export interface WindowStateExt {
     $onWindowStateChanged(focus: boolean): void;
 }
@@ -668,6 +694,7 @@ export const PLUGIN_RPC_CONTEXT = {
     STATUS_BAR_MESSAGE_REGISTRY_MAIN: <ProxyIdentifier<StatusBarMessageRegistryMain>>createProxyIdentifier<StatusBarMessageRegistryMain>('StatusBarMessageRegistryMain'),
     ENV_MAIN: createProxyIdentifier<EnvMain>('EnvMain'),
     TERMINAL_MAIN: createProxyIdentifier<TerminalServiceMain>('TerminalServiceMain'),
+    TREE_VIEWS_MAIN: createProxyIdentifier<TreeViewsMain>('TreeViewsMain'),
     PREFERENCE_REGISTRY_MAIN: createProxyIdentifier<PreferenceRegistryMain>('PreferenceRegistryMain'),
     OUTPUT_CHANNEL_REGISTRY_MAIN: <ProxyIdentifier<OutputChannelRegistryMain>>createProxyIdentifier<OutputChannelRegistryMain>('OutputChannelRegistryMain'),
     LANGUAGES_MAIN: createProxyIdentifier<LanguagesMain>('LanguagesMain'),
@@ -684,6 +711,7 @@ export const MAIN_RPC_CONTEXT = {
     DOCUMENTS_EXT: createProxyIdentifier<DocumentsExt>('DocumentsExt'),
     ENV_EXT: createProxyIdentifier<EnvExt>('EnvExt'),
     TERMINAL_EXT: createProxyIdentifier<TerminalServiceExt>('TerminalServiceExt'),
+    TREE_VIEWS_EXT: createProxyIdentifier<TreeViewsExt>('TreeViewsExt'),
     PREFERENCE_REGISTRY_EXT: createProxyIdentifier<PreferenceRegistryExt>('PreferenceRegistryExt'),
     LANGUAGES_EXT: createProxyIdentifier<LanguagesExt>('LanguagesExt'),
 };
