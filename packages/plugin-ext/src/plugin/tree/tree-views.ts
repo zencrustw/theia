@@ -102,7 +102,7 @@ class TreeViewExtImpl<T> extends Disposable {
     private selection: T[] = [];
     get selectedElements(): T[] { return this.selection; }
 
-    constructor(private treeViewId: string, private treeDataProvider: TreeDataProvider<T>, proxy: TreeViewsMain) {
+    constructor(treeViewId: string, private treeDataProvider: TreeDataProvider<T>, proxy: TreeViewsMain) {
         super(() => {
             this.dispose();
         });
