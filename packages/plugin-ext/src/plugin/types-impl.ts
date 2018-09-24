@@ -871,6 +871,8 @@ export class Hover {
     }
 }
 
+export type Definition = Location | Location[];
+
 export class TreeItem {
 
     label?: string;

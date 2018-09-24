@@ -14,31 +14,33 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import URI from 'vscode-uri/lib/umd';
 import * as theia from '@theia/plugin';
 import { DocumentsExtImpl } from '../documents';
 import * as Converter from '../type-converters';
-import { Position } from '../../api/plugin-api';
-import { SignatureHelp } from '../../api/model';
+import URI from 'vscode-uri/lib/umd';
+import { FormattingOptions, SingleEditOperation } from '../../api/model';
 
-export class SignatureHelpAdapter {
+export class DocumentFormattingAdapter {
 
     constructor(
-        private readonly delegate: theia.SignatureHelpProvider,
-        private readonly documents: DocumentsExtImpl) {
+        private readonly provider: theia.DocumentFormattingEditProvider,
+        private readonly documents: DocumentsExtImpl
+    ) { }
 
-    }
-
-    provideSignatureHelp(resource: URI, position: Position): Promise<SignatureHelp | undefined> {
-        const documentData = this.documents.getDocumentData(resource);
-        if (!documentData) {
-            return Promise.reject(new Error(`There are no document for  ${resource}`));
+    provideDocumentFormattingEdits(resource: URI, options: FormattingOptions): Promise<SingleEditOperation[] | undefined> {
+        const document = this.documents.getDocumentData(resource);
+        if (!document) {
+            return Promise.reject(new Error(`There are no document for ${resource}`));
         }
 
-        const document = documentData.document;
-        const zeroBasedPosition = Converter.toPosition(position);
+        const doc = document.document;
 
-        return Promise.resolve(this.delegate.provideSignatureHelp(document, zeroBasedPosition, undefined));
+        return Promise.resolve(this.provider.provideDocumentFormattingEdits(doc, <any>options, undefined)).then(value => {
+            if (Array.isArray(value)) {
+                return value.map(Converter.fromTextEdit);
+            }
+            return undefined;
+        });
     }
 
 }

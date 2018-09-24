@@ -37,14 +37,20 @@ import {
     Completion,
     SerializedDocumentFilter,
     SignatureHelp,
-    Hover
+    Hover,
+    SingleEditOperation,
+    FormattingOptions,
+    Definition,
+    DefinitionLink
 } from '../api/model';
 import { CompletionAdapter } from './languages/completion';
 import { Diagnostics } from './languages/diagnostics';
 import { SignatureHelpAdapter } from './languages/signature';
 import { HoverAdapter } from './languages/hover';
+import { DocumentFormattingAdapter } from './languages/document-formatting';
+import { DefinitionAdapter } from './languages/definition';
 
-type Adapter = CompletionAdapter | SignatureHelpAdapter | HoverAdapter;
+type Adapter = CompletionAdapter | SignatureHelpAdapter | HoverAdapter | DocumentFormattingAdapter | DefinitionAdapter;
 
 export class LanguagesExtImpl implements LanguagesExt {
 
@@ -165,6 +171,18 @@ export class LanguagesExtImpl implements LanguagesExt {
     }
     // ### Completion end
 
+    // ### Definition provider begin
+    $provideDefinition(handle: number, resource: UriComponents, position: Position): Promise<Definition | DefinitionLink[] | undefined> {
+        return this.withAdapter(handle, DefinitionAdapter, adapter => adapter.provideDefinition(URI.revive(resource), position));
+    }
+
+    registerDefinitionProvider(selector: theia.DocumentSelector, provider: theia.DefinitionProvider): theia.Disposable {
+        const callId = this.addNewAdapter(new DefinitionAdapter(provider, this.documents));
+        this.proxy.$registerDefinitionProvider(callId, this.transformDocumentSelector(selector));
+        return this.createDisposable(callId);
+    }
+    // ### Definition provider end
+
     // ### Signature help begin
     $provideSignatureHelp(handle: number, resource: UriComponents, position: Position): Promise<SignatureHelp | undefined> {
         return this.withAdapter(handle, SignatureHelpAdapter, adapter => adapter.provideSignatureHelp(URI.revive(resource), position));
@@ -172,7 +190,7 @@ export class LanguagesExtImpl implements LanguagesExt {
 
     registerSignatureHelpProvider(selector: theia.DocumentSelector, provider: theia.SignatureHelpProvider, ...triggerCharacters: string[]): theia.Disposable {
         const callId = this.addNewAdapter(new SignatureHelpAdapter(provider, this.documents));
-        this.proxy.$registerSignatureHelpSupport(callId, this.transformDocumentSelector(selector), triggerCharacters);
+        this.proxy.$registerSignatureHelpProvider(callId, this.transformDocumentSelector(selector), triggerCharacters);
         return this.createDisposable(callId);
     }
     // ### Signature help end
@@ -198,6 +216,19 @@ export class LanguagesExtImpl implements LanguagesExt {
         return this.withAdapter(handle, HoverAdapter, adapter => adapter.provideHover(URI.revive(resource), position));
     }
     // ### Hover Provider end
+
+    // ### Document Formatting Edit begin
+    registerDocumentFormattingEditProvider(selector: theia.DocumentSelector, provider: theia.DocumentFormattingEditProvider): theia.Disposable {
+        const callId = this.addNewAdapter(new DocumentFormattingAdapter(provider, this.documents));
+        this.proxy.$registerDocumentFormattingSupport(callId, this.transformDocumentSelector(selector));
+        return this.createDisposable(callId);
+    }
+
+    $provideDocumentFormattingEdits(handle: number, resource: UriComponents, options: FormattingOptions): Promise<SingleEditOperation[] | undefined> {
+        return this.withAdapter(handle, DocumentFormattingAdapter, adapter => adapter.provideDocumentFormattingEdits(URI.revive(resource), options));
+    }
+    // ### Document Formatting Edit end
+
 }
 
 function serializeEnterRules(rules?: theia.OnEnterRule[]): SerializedOnEnterRule[] | undefined {

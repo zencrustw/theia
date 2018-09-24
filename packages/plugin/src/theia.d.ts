@@ -543,6 +543,66 @@ declare module '@theia/plugin' {
     }
 
     /**
+     * Information about where a symbol is defined.
+     *
+     * Provides additional metadata over normal [location](#Location) definitions, including the range of
+     * the defining symbol
+     */
+    export interface DefinitionLink {
+        /**
+         * Span of the symbol being defined in the source file.
+         *
+         * Used as the underlined span for mouse definition hover. Defaults to the word range at
+         * the definition position.
+         */
+        originSelectionRange?: Range;
+
+        /**
+         * The resource identifier of the definition.
+         */
+        targetUri: Uri;
+
+        /**
+         * The full range of the definition.
+         *
+         * For a class definition for example, this would be the entire body of the class definition.
+         */
+        targetRange: Range;
+
+        /**
+         * The span of the symbol definition.
+         *
+         * For a class definition, this would be the class name itself in the class definition.
+         */
+        targetSelectionRange?: Range;
+    }
+
+    /**
+     * The definition of a symbol represented as one or many [locations](#Location).
+     * For most programming languages there is only one location at which a symbol is
+     * defined.
+     */
+    export type Definition = Location | Location[];
+
+    /**
+     * The definition provider interface defines the contract between extensions and
+     * the [go to definition](https://code.visualstudio.com/docs/editor/editingevolved#_go-to-definition)
+     * and peek definition features.
+     */
+    export interface DefinitionProvider {
+        /**
+         * Provide the definition of the symbol at the given position and document.
+         *
+         * @param document The document in which the command was invoked.
+         * @param position The position at which the command was invoked.
+         * @param token A cancellation token.
+         * @return A definition or a thenable that resolves to such. The lack of a result can be
+         * signaled by returning `undefined` or `null`.
+         */
+        provideDefinition(document: TextDocument, position: Position, token: CancellationToken | undefined): ProviderResult<Definition | DefinitionLink[]>;
+    }
+
+    /**
      * The MarkdownString represents human readable text that supports formatting via the
      * markdown syntax. Standard markdown is supported, also tables, but no embedded html.
      */
@@ -2162,7 +2222,7 @@ declare module '@theia/plugin' {
          * @param items A set of items that will be rendered as actions in the message.
          * @return A promise that resolves to the selected item or `undefined` when being dismissed.
          */
-        export function showInformationMessage<T extends MessageItem>(message: string, options: MessageOptions, ...items: T[]): PromiseLike<T | undefined>
+        export function showInformationMessage<T extends MessageItem>(message: string, options: MessageOptions, ...items: T[]): PromiseLike<T | undefined>;
 
         /**
          * Show an information message.
@@ -3331,7 +3391,6 @@ declare module '@theia/plugin' {
         constructor(range: Range, newText: string);
     }
 
-
     /**
      * Completion item kinds.
      */
@@ -3501,7 +3560,6 @@ declare module '@theia/plugin' {
          */
         constructor(items?: CompletionItem[], isIncomplete?: boolean);
     }
-
 
     /**
      * The completion item provider interface defines the contract between plugin and IntelliSense
@@ -3782,6 +3840,49 @@ declare module '@theia/plugin' {
         dispose(): void;
     }
 
+    /**
+     * The document formatting provider interface defines the contract between extensions and
+     * the formatting-feature.
+     */
+    export interface DocumentFormattingEditProvider {
+
+        /**
+         * Provide formatting edits for a whole document.
+         *
+         * @param document The document in which the command was invoked.
+         * @param options Options controlling formatting.
+         * @param token A cancellation token.
+         * @return A set of text edits or a thenable that resolves to such. The lack of a result can be
+         * signaled by returning `undefined`, `null`, or an empty array.
+         */
+        provideDocumentFormattingEdits(
+            document: TextDocument,
+            options: FormattingOptions,
+            token: CancellationToken | undefined
+        ): ProviderResult<TextEdit[] | undefined>;
+    }
+
+    /**
+     * Value-object describing what options formatting should use.
+     */
+    export interface FormattingOptions {
+
+        /**
+         * Size of a tab in spaces.
+         */
+        tabSize: number;
+
+        /**
+         * Prefer spaces over tabs.
+         */
+        insertSpaces: boolean;
+
+        /**
+         * Signature for further properties.
+         */
+        [key: string]: boolean | number | string;
+    }
+
     export namespace languages {
         /**
          * Return the identifiers of all known languages.
@@ -3885,6 +3986,19 @@ declare module '@theia/plugin' {
         export function registerCompletionItemProvider(selector: DocumentSelector, provider: CompletionItemProvider, ...triggerCharacters: string[]): Disposable;
 
         /**
+         * Register a definition provider.
+         *
+         * Multiple providers can be registered for a language. In that case providers are asked in
+         * parallel and the results are merged. A failing provider (rejected promise or exception) will
+         * not cause a failure of the whole operation.
+         *
+         * @param selector A selector that defines the documents this provider is applicable to.
+         * @param provider A definition provider.
+         * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
+         */
+        export function registerDefinitionProvider(selector: DocumentSelector, provider: DefinitionProvider): Disposable;
+
+        /**
          * Register a signature help provider.
          *
          * Multiple providers can be registered for a language. In that case providers are sorted
@@ -3898,7 +4012,6 @@ declare module '@theia/plugin' {
          */
         export function registerSignatureHelpProvider(selector: DocumentSelector, provider: SignatureHelpProvider, ...triggerCharacters: string[]): Disposable;
 
-
         /**
          * Register a hover provider.
          *
@@ -3911,6 +4024,19 @@ declare module '@theia/plugin' {
          * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
          */
         export function registerHoverProvider(selector: DocumentSelector, provider: HoverProvider): Disposable;
+
+        /**
+         * Register a formatting provider for a document.
+         *
+         * Multiple providers can be registered for a language. In that case providers are sorted
+         * by their [score](#languages.match) and the best-matching provider is used. Failure
+         * of the selected provider will cause a failure of the whole operation.
+         *
+         * @param selector A selector that defines the documents this provider is applicable to.
+         * @param provider A document formatting edit provider.
+         * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
+         */
+        export function registerDocumentFormattingEditProvider(selector: DocumentSelector, provider: DocumentFormattingEditProvider): Disposable;
     }
 
     /**

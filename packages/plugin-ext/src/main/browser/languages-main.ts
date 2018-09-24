@@ -85,7 +85,19 @@ export class LanguagesMainImpl implements LanguagesMain {
         }));
     }
 
-    $registerSignatureHelpSupport(handle: number, selector: SerializedDocumentFilter[], triggerCharacters: string[]): void {
+    $registerDefinitionProvider(handle: number, selector: SerializedDocumentFilter[]): void {
+        const languageSelector = fromLanguageSelector(selector);
+        const definitionProvider = this.createDefinitionProvider(handle, languageSelector);
+        const disposable = new DisposableCollection();
+        for (const language of getLanguages()) {
+            if (this.matchLanguage(languageSelector, language)) {
+                disposable.push(monaco.languages.registerDefinitionProvider(language, definitionProvider));
+            }
+        }
+        this.disposables.set(handle, disposable);
+    }
+
+    $registerSignatureHelpProvider(handle: number, selector: SerializedDocumentFilter[], triggerCharacters: string[]): void {
         const languageSelector = fromLanguageSelector(selector);
         const signatureHelpProvider = this.createSignatureHelpProvider(handle, languageSelector, triggerCharacters);
         const disposable = new DisposableCollection();
@@ -142,6 +154,36 @@ export class LanguagesMainImpl implements LanguagesMain {
         };
     }
 
+    protected createDefinitionProvider(handle: number, selector: LanguageSelector | undefined): monaco.languages.DefinitionProvider {
+        return {
+            provideDefinition: (model, position, token) => {
+                if (!this.matchModel(selector, MonacoModelIdentifier.fromModel(model))) {
+                    return undefined!;
+                }
+                return this.proxy.$provideDefinition(handle, model.uri, position).then(result => {
+                    if (!result) {
+                        return undefined!;
+                    }
+
+                    if (Array.isArray(result)) {
+                        // using DefinitionLink because Location is mandatory part of DefinitionLink
+                        const definitionLinks: monaco.languages.DefinitionLink[] = [];
+                        for (const item of result) {
+                            definitionLinks.push({ ...item, uri: monaco.Uri.revive(item.uri) });
+                        }
+                        return definitionLinks;
+                    } else {
+                        // single Location
+                        return <monaco.languages.Location>{
+                            uri: monaco.Uri.revive(result.uri),
+                            range: result.range
+                        };
+                    }
+                });
+            }
+        };
+    }
+
     protected createSignatureHelpProvider(handle: number, selector: LanguageSelector | undefined, triggerCharacters: string[]): monaco.languages.SignatureHelpProvider {
         return {
             signatureHelpTriggerCharacters: triggerCharacters,
@@ -150,6 +192,29 @@ export class LanguagesMainImpl implements LanguagesMain {
                     return undefined!;
                 }
                 return this.proxy.$provideSignatureHelp(handle, model.uri, position).then(v => v!);
+            }
+        };
+    }
+
+    $registerDocumentFormattingSupport(handle: number, selector: SerializedDocumentFilter[]): void {
+        const languageSelector = fromLanguageSelector(selector);
+        const documentFormattingEditSupport = this.createDocumentFormattingSupport(handle, languageSelector);
+        const disposable = new DisposableCollection();
+        for (const language of getLanguages()) {
+            if (this.matchLanguage(languageSelector, language)) {
+                disposable.push(monaco.languages.registerDocumentFormattingEditProvider(language, documentFormattingEditSupport));
+            }
+        }
+        this.disposables.set(handle, disposable);
+    }
+
+    createDocumentFormattingSupport(handle: number, selector: LanguageSelector | undefined): monaco.languages.DocumentFormattingEditProvider {
+        return {
+            provideDocumentFormattingEdits: (model, options, token) => {
+                if (!this.matchModel(selector, MonacoModelIdentifier.fromModel(model))) {
+                    return undefined!;
+                }
+                return this.proxy.$provideDocumentFormattingEdits(handle, model.uri, options).then(v => v!);
             }
         };
     }
