@@ -4,6 +4,7 @@
   "description": "Theia - NodeJS Debug Extension",
   "dependencies": {
     "@theia/debug": "^0.3.14",
+    "ps-list": "5.0.0",
     "vscode-debugprotocol": "^1.26.0"
   },
   "publishConfig": {
