@@ -21,7 +21,7 @@ import { NAVIGATOR_CONTEXT_MENU } from '@theia/navigator/lib/browser/navigator-c
 import { UriCommandHandler, UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 import URI from '@theia/core/lib/common/uri';
 import { GitHistoryWidget } from './git-history-widget';
-import { Git } from '../../common';
+import { Git, Repository } from '../../common';
 import { GitRepositoryTracker } from '../git-repository-tracker';
 
 export namespace GitHistoryCommands {
@@ -44,6 +44,8 @@ export class GitHistoryContribution extends AbstractViewContribution<GitHistoryW
     @inject(GitRepositoryTracker)
     protected readonly repositoryTracker: GitRepositoryTracker;
 
+    protected currentRepository?: Repository;
+
     constructor() {
         super({
             widgetId: GIT_HISTORY,
@@ -59,8 +61,10 @@ export class GitHistoryContribution extends AbstractViewContribution<GitHistoryW
 
     @postConstruct()
     protected init() {
-        this.repositoryTracker.onDidChangeRepository(async repository =>
-            this.refreshWidget(repository ? repository.localUri : undefined)
+        this.repositoryTracker.onDidChangeRepository(async repository => {
+            this.currentRepository = repository;
+            this.refreshWidget(repository ? repository.localUri : undefined);
+        }
         );
         this.repositoryTracker.onGitEvent(event => {
             const { source, status, oldStatus } = event;
@@ -86,7 +90,13 @@ export class GitHistoryContribution extends AbstractViewContribution<GitHistoryW
 
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(GitHistoryCommands.OPEN_FILE_HISTORY, this.newUriAwareCommandHandler({
-            execute: async uri => this.showWidget(uri.toString())
+            execute: async uri => this.showWidget(uri.toString()),
+            isEnabled: (uri: URI) => {
+                if (this.currentRepository) {
+                    return !(URI.getDistinctParents([new URI(this.currentRepository.localUri), uri]).length > 1);
+                }
+                return false;
+            }
         }));
         commands.registerCommand(GitHistoryCommands.OPEN_BRANCH_HISTORY, {
             execute: () => this.showWidget(undefined)
