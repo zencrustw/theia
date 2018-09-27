@@ -755,6 +755,15 @@ describe('NodeFileSystem', function () {
 
     });
 
+    describe('#16 drives', async () => {
+
+        it('should list URIs of the drives', async () => {
+            const drives = await createFileSystem().getDrives();
+            expect(drives).to.be.not.empty;
+        });
+
+    });
+
     function createFileSystem(): FileSystem {
         return new FileSystemNode();
     }
