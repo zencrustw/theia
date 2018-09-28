@@ -16,7 +16,7 @@
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { Disposable } from '../../common';
+import { Disposable, MaybePromise } from '../../common';
 
 export class ReactRenderer implements Disposable {
     readonly host: HTMLElement;
@@ -30,11 +30,16 @@ export class ReactRenderer implements Disposable {
         ReactDOM.unmountComponentAtNode(this.host);
     }
 
-    render(): void {
-        ReactDOM.render(<React.Fragment>{this.doRender()}</React.Fragment>, this.host);
+    render(): MaybePromise<void> {
+        return new Promise(async resolve => {
+            const node = await this.doRender();
+            ReactDOM.render(<React.Fragment>{node}</React.Fragment>, this.host);
+            resolve();
+        });
     }
 
-    protected doRender(): React.ReactNode {
+    protected doRender(): MaybePromise<React.ReactNode> {
         return undefined;
     }
+
 }

@@ -17,7 +17,8 @@
 import { injectable, inject, postConstruct } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import { CompositeTreeNode, TreeModelImpl, TreeNode, ConfirmDialog } from '@theia/core/lib/browser';
-import { FileSystem, } from '../../common';
+import { Deferred } from '@theia/core/lib/common/promise-util';
+import { FileSystem } from '../../common';
 import { FileSystemWatcher, FileChangeType, FileChange, FileMoveEvent } from '../filesystem-watcher';
 import { FileStatNode, DirNode, FileNode } from './file-tree';
 import { LocationService } from '../location';
@@ -31,11 +32,14 @@ export class FileTreeModel extends TreeModelImpl implements LocationService {
     @inject(FileSystem) protected readonly fileSystem: FileSystem;
     @inject(FileSystemWatcher) protected readonly watcher: FileSystemWatcher;
 
+    protected readonly _drives = new Deferred<URI[]>();
+
     @postConstruct()
     protected init(): void {
         super.init();
         this.toDispose.push(this.watcher.onFilesChanged(changes => this.onFilesChanged(changes)));
         this.toDispose.push(this.watcher.onDidMove(move => this.onDidMove(move)));
+        this.fileSystem.getDrives().then(drives => this._drives.resolve(drives.map(uri => new URI(uri))));
     }
 
     get location(): URI | undefined {
@@ -59,6 +63,10 @@ export class FileTreeModel extends TreeModelImpl implements LocationService {
         } else {
             this.navigateTo(undefined);
         }
+    }
+
+    async drives(): Promise<URI[]> {
+        return this._drives.promise;
     }
 
     get selectedFileStatNodes(): Readonly<FileStatNode>[] {
