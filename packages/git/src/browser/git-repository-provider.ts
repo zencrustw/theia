@@ -19,6 +19,7 @@ import { injectable, inject } from 'inversify';
 import { WorkspaceService } from '@theia/workspace/lib/browser/workspace-service';
 import { FileSystem, FileStat } from '@theia/filesystem/lib/common';
 import { Event, Emitter } from '@theia/core';
+import { LocalStorageService } from '@theia/core/lib/browser';
 
 export interface GitRefreshOptions {
     readonly maxCount: number
@@ -30,11 +31,13 @@ export class GitRepositoryProvider {
     protected _selectedRepository: Repository | undefined;
     protected _allRepositories: Repository[] = [];
     protected readonly onDidChangeRepositoryEmitter = new Emitter<Repository | undefined>();
+    protected readonly storageKey = 'theia-git-selected-repository';
 
     constructor(
         @inject(Git) protected readonly git: Git,
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
-        @inject(FileSystem) protected readonly fileSystem: FileSystem
+        @inject(FileSystem) protected readonly fileSystem: FileSystem,
+        @inject(LocalStorageService) protected readonly storageService: LocalStorageService
     ) {
         this.initialize();
     }
@@ -43,7 +46,8 @@ export class GitRepositoryProvider {
         this.workspaceService.onWorkspaceChanged(event => {
             this.refresh();
         });
-        await this.refresh({ maxCount: 1 });
+        this._selectedRepository = await this.storageService.getData<Repository | undefined>(this.storageKey);
+        // await this.refresh({ maxCount: 1 });
         await this.refresh();
     }
 
@@ -61,6 +65,7 @@ export class GitRepositoryProvider {
      */
     set selectedRepository(repository: Repository | undefined) {
         this._selectedRepository = repository;
+        this.storageService.setData<Repository | undefined>(this.storageKey, repository);
         this.fireDidChangeRepository();
     }
 
