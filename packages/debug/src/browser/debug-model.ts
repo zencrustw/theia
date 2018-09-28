@@ -37,7 +37,8 @@ export const DEFAULT_STACK_FRAME_FORMAT: DebugProtocol.StackFrameFormat = {
  */
 export const INITIALIZE_ARGUMENTS = {
     clientID: 'Theia',
-    locale: '',
+    clientName: 'Theia IDE',
+    locale: 'en-US',
     linesStartAt1: true,
     columnsStartAt1: true,
     pathFormat: 'path',

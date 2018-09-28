@@ -339,6 +339,8 @@ export class DebugSessionManager {
     }
 
     private async launch(session: DebugSession, initializeArgs: DebugProtocol.InitializeRequestArguments): Promise<void> {
+        await session.initialize(initializeArgs);
+
         const launchArgs: DebugProtocol.LaunchRequestArguments = Object.assign(session.configuration, { __restart: false, noDebug: false });
         try {
             await session.launch(launchArgs);
@@ -346,13 +348,10 @@ export class DebugSessionManager {
             this.onSessionInitializationFailed(session, cause as DebugProtocol.Response);
             throw cause;
         }
-
-        await session.initialize(initializeArgs);
     }
 
     private async onSessionInitialized(session: DebugSession): Promise<void> {
         await this.breakpointApplier.applySessionBreakpoints(session);
-        await session.loadedSources({});
         await session.configurationDone();
     }
 
